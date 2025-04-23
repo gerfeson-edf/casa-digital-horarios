@@ -5,42 +5,79 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Casa Digital – Disponibilidade de Horários</title>
   <style>
-    :root {
-      --primario: #0d6efd;
-      --selecionado: #4caf50;
-      --texto-claro: #fff;
-      --cinza-borda: #d0d0d0;
-      --manha: #f0f7ff;
-      --tarde: #fff7e6;
-      --noite: #f9f0ff;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;padding:1rem}
-    h1{text-align:center;margin-bottom:1.5rem}
-    .container{max-width:1200px;margin:auto;background:#fff;padding:2rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-    label,input,textarea,button{font-size:1rem}
-    input,textarea{padding:.4rem}
-    button{cursor:pointer;padding:.5rem 1rem;border:none;border-radius:4px;background:var(--primario);color:var(--texto-claro);transition:.2s}
-    button:hover{background:#0b5ed7}
-    .row{margin-bottom:1.2rem;text-align:center}
-    #gradeWrapper{overflow-x:auto;margin-bottom:1rem}
-    table{min-width:700px;width:100%;border-collapse:collapse;table-layout:fixed}
-    th,td{border:1px solid var(--cinza-borda);text-align:center;padding:.4rem;user-select:none}
-    th.time-col{width:80px;background:#fafafa;position:sticky;left:0}
-    thead th{background:var(--primario);color:var(--texto-claro)}
-    td.slot{height:34px;cursor:pointer;position:relative}
-    td.slot:hover{background:#e9f2ff}
-    td.slot.available{background:var(--selecionado);color:var(--texto-claro)}
-    td.slot.available::after{content:"\2713";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.1rem;pointer-events:none}
-    td.slot.highlight{box-shadow:inset 0 0 0 3px #ff9800}
-    tr.manha td.slot{background:var(--manha)}
-    tr.tarde td.slot{background:var(--tarde)}
-    tr.noite td.slot{background:var(--noite)}
-    tr.manha td.slot.available,tr.tarde td.slot.available,tr.noite td.slot.available{background:var(--selecionado);color:var(--texto-claro)}
-    @media(max-width:600px){th.time-col{width:60px;font-size:.8rem}thead th{font-size:.8rem}}
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 2rem; }
+    .container { background: white; padding: 2rem; border-radius: 8px; max-width: 960px; margin: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; text-align: center; padding: 0.4rem; }
+    td.slot { cursor: pointer; background: #f0f0f0; }
+    td.slot:hover { background: #d0e7ff; }
+    td.slot.selected { background: #4caf50; color: white; font-weight: bold; }
+    textarea { width: 100%; margin-top: 1rem; height: 100px; }
+    button { margin: 0.5rem 0.5rem 0.5rem 0; padding: 0.5rem 1rem; }
   </style>
 </head>
 <body>
-  <!-- conteúdo omitido para brevidade -->
+  <div class="container">
+    <h1>Casa Digital – Disponibilidade de Horários</h1>
+    <label for="nome">Seu nome:</label>
+    <input type="text" id="nome" placeholder="Digite seu nome" />
+    <div id="tabelaContainer"></div>
+    <button onclick="copiarJSON()">Copiar JSON</button>
+    <button onclick="enviarResposta()">Enviar Resposta</button>
+    <textarea id="output" readonly placeholder="JSON aparece aqui..."></textarea>
+  </div>
+
+  <script>
+    const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+    const horas = [];
+    for (let h = 6; h < 24; h += 0.5) {
+      const hora = String(Math.floor(h)).padStart(2, '0') + ':' + (h % 1 === 0 ? '00' : '30');
+      horas.push(hora);
+    }
+
+    const container = document.getElementById('tabelaContainer');
+    const tabela = document.createElement('table');
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.innerHTML = '<th>Horário</th>' + dias.map(d => `<th>${d}</th>`).join('');
+    thead.appendChild(headRow);
+    tabela.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    horas.forEach(h => {
+      const row = document.createElement('tr');
+      row.innerHTML = `<th>${h}</th>` + dias.map(d => `<td class="slot" data-dia="${d}" data-hora="${h}"></td>`).join('');
+      tbody.appendChild(row);
+    });
+    tabela.appendChild(tbody);
+    container.appendChild(tabela);
+
+    document.querySelectorAll('.slot').forEach(cell => {
+      cell.onclick = () => cell.classList.toggle('selected');
+    });
+
+    function copiarJSON() {
+      const nome = document.getElementById('nome').value.trim();
+      if (!nome) return alert('Digite seu nome!');
+      const disp = Object.fromEntries(dias.map(d => [d, []]));
+      document.querySelectorAll('.slot.selected').forEach(cell => {
+        disp[cell.dataset.dia].push(cell.dataset.hora);
+      });
+      const dados = {
+        nome,
+        dataPreenchimento: new Date().toISOString().split('T')[0],
+        disponibilidade: disp
+      };
+      const txt = JSON.stringify(dados, null, 2);
+      navigator.clipboard.writeText(txt);
+      document.getElementById('output').value = txt;
+      alert('Copiado com sucesso!');
+    }
+
+    function enviarResposta() {
+      copiarJSON();
+      alert('Agora cole esse JSON onde o coordenador pediu.');
+    }
+  </script>
 </body>
 </html>
