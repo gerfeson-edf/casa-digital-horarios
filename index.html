@@ -83,10 +83,17 @@
     const nome = document.getElementById("nome").value.trim();
     const chave = document.getElementById("chave").value.trim();
     if (!nome) return alert("Digite seu nome!");
+
     const disp = Object.fromEntries(dias.map(d => [d, []]));
+    let selecionou = false;
+
     document.querySelectorAll(".slot.selected").forEach(cell => {
       disp[cell.dataset.dia].push(cell.dataset.hora);
+      selecionou = true;
     });
+
+    if (!selecionou) return alert("Você precisa marcar pelo menos um horário.");
+
     const dados = {
       nome,
       dataPreenchimento: new Date().toISOString(),
@@ -118,36 +125,40 @@
       painel.innerHTML = "";
       const contagem = {}, nomes = [];
 
-      Object.values(dados).forEach(({ nome, disponibilidade }) => {
-        nomes.push(nome);
+      Object.values(dados).forEach(obj => {
+        if (!obj.nome || !obj.disponibilidade) return;
+        nomes.push(obj.nome);
         dias.forEach(d => {
-          (disponibilidade[d] || []).forEach(h => {
-            const key = `${d}_${h}`;
-            if (!contagem[key]) contagem[key] = [];
-            contagem[key].push(nome);
+          const horarios = obj.disponibilidade[d] || [];
+          horarios.forEach(h => {
+            const chave = `${d}_${h}`;
+            if (!contagem[chave]) contagem[chave] = [];
+            contagem[chave].push(obj.nome);
           });
         });
       });
 
-      let melhor = '', max = 0;
-      for (const [k, list] of Object.entries(contagem)) {
-        if (list.length > max) {
-          max = list.length;
+      let melhor = "", max = 0;
+      Object.entries(contagem).forEach(([k, lista]) => {
+        if (lista.length > max) {
+          max = lista.length;
           melhor = k;
         }
-      }
+      });
 
-      const [diaMelhor, horaMelhor] = melhor.split('_');
+      const [diaMelhor, horaMelhor] = melhor.split("_");
       const presentes = contagem[melhor] || [];
       const faltam = nomes.filter(n => !presentes.includes(n));
 
       document.getElementById("resumo").textContent =
+        melhor ?
         `Melhor horário: ${diaMelhor} às ${horaMelhor} (${presentes.length}/${nomes.length}). ` +
-        (faltam.length ? `Quem precisa ajustar: ${faltam.join(', ')}` : '✔ Todos disponíveis');
+        (faltam.length ? `Quem precisa ajustar: ${faltam.join(", ")}` : "✔ Todos disponíveis")
+        : "Nenhum horário em comum entre os participantes.";
 
-      Object.entries(dados).forEach(([nome, obj]) => {
+      Object.entries(dados).forEach(([chave, obj]) => {
         const li = document.createElement("li");
-        li.textContent = `${nome} - enviado em ${obj.dataPreenchimento?.split("T")[0] || 'data desconhecida'}`;
+        li.textContent = `${obj.nome || chave} - enviado em ${obj.dataPreenchimento?.split("T")[0] || "data desconhecida"}`;
         painel.appendChild(li);
       });
     });
