@@ -1,142 +1,65 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Casa Digital – Disponibilidade de Horários</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Casa Digital – Disponibilidade</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 2rem; }
-    .container { background: white; padding: 2rem; border-radius: 8px; max-width: 1000px; margin: auto; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; text-align: center; padding: 0.4rem; }
-    td.slot { cursor: pointer; background: #f0f0f0; }
-    td.slot:hover { background: #d0e7ff; }
-    td.slot.selected { background: #4caf50; color: white; font-weight: bold; }
-    #painel { margin-top: 2rem; background: #eef; padding: 1rem; border-radius: 6px; }
-  </style>
 </head>
 <body>
-<div class="container">
-  <h1>Casa Digital – Disponibilidade de Horários</h1>
-  <label for="nome">Seu nome:</label>
-  <input type="text" id="nome" placeholder="Digite seu nome">
-  <div id="tabelaContainer"></div>
-  <button onclick="enviarFirebase()">Enviar Disponibilidade</button>
-
-  <div id="painel">
+  <h1>Casa Digital – Horários</h1>
+  <input id="nome" placeholder="Seu nome" />
+  <input id="chave" placeholder="Código do coordenador (opcional)" />
+  <button onclick="salvar()">Enviar Disponibilidade</button>
+  <div id="status"></div>
+  <div id="painel" style="margin-top:2rem;display:none;">
     <h2>Painel do Coordenador</h2>
     <p id="resumo"></p>
     <ul id="respostas"></ul>
   </div>
-</div>
-
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyD5iwRG_p5AwvRH0qaYYfFhw8w0yP9Bdzs",
-    authDomain: "casa-digital-e4424.firebaseapp.com",
-    databaseURL: "https://casa-digital-e4424-default-rtdb.firebaseio.com",
-    projectId: "casa-digital-e4424",
-    storageBucket: "casa-digital-e4424.appspot.com",
-    messagingSenderId: "1037150633612",
-    appId: "1:1037150633612:web:b7cba3d51b23417a917a4d"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  const dias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
-  const horas = [];
-  for (let h = 6; h < 24; h += 0.5) {
-    const hora = String(Math.floor(h)).padStart(2, '0') + ':' + (h % 1 === 0 ? '00' : '30');
-    horas.push(hora);
-  }
-
-  const container = document.getElementById('tabelaContainer');
-  const tabela = document.createElement('table');
-  const thead = document.createElement('thead');
-  const headRow = document.createElement('tr');
-  headRow.innerHTML = '<th>Horário</th>' + dias.map(d => `<th>${d}</th>`).join('');
-  thead.appendChild(headRow);
-  tabela.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  horas.forEach(h => {
-    const row = document.createElement('tr');
-    row.innerHTML = `<th>${h}</th>` + dias.map(d => `<td class="slot" data-dia="${d}" data-hora="${h}"></td>`).join('');
-    tbody.appendChild(row);
-  });
-  tabela.appendChild(tbody);
-  container.appendChild(tabela);
-
-  document.querySelectorAll('.slot').forEach(cell => {
-    cell.onclick = () => cell.classList.toggle('selected');
-  });
-
-  function enviarFirebase() {
-    const nome = document.getElementById('nome').value.trim();
-    if (!nome) return alert('Digite seu nome!');
-    const disp = Object.fromEntries(dias.map(d => [d, []]));
-    document.querySelectorAll('.slot.selected').forEach(cell => {
-      disp[cell.dataset.dia].push(cell.dataset.hora);
-    });
-    const dados = {
-      nome,
-      dataPreenchimento: new Date().toISOString().split('T')[0],
-      disponibilidade: disp
+  <script>
+    var firebaseConfig = {
+      apiKey: "AIzaSyD5iwRG_p5AwvRH0qaYYfFhw8w0yP9Bdzs",
+      authDomain: "casa-digital-e4424.firebaseapp.com",
+      databaseURL: "https://casa-digital-e4424-default-rtdb.firebaseio.com",
+      projectId: "casa-digital-e4424",
+      storageBucket: "casa-digital-e4424.appspot.com",
+      messagingSenderId: "1037150633612",
+      appId: "1:1037150633612:web:b7cba3d51b23417a917a4d"
     };
-    db.ref("disponibilidades/" + nome).set(dados).then(() => {
-      alert("Disponibilidade enviada!");
-      carregarRespostas();
-    });
-  }
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-  function carregarRespostas() {
-    db.ref("disponibilidades").once("value").then(snapshot => {
-      const respostas = snapshot.val() || {};
-      const painel = document.getElementById('respostas');
-      painel.innerHTML = '';
+    function salvar() {
+      const nome = document.getElementById("nome").value.trim();
+      const chave = document.getElementById("chave").value.trim();
+      if (!nome) return alert("Digite seu nome!");
+      const dados = {
+        nome: nome,
+        enviadoEm: new Date().toISOString()
+      };
+      db.ref("disponibilidades/" + nome).set(dados).then(() => {
+        document.getElementById("status").innerText = "✅ Dados enviados!";
+        if (chave === "admin2025") mostrarPainel();
+      });
+    }
 
-      const contagem = {};
-      let totalPessoas = 0;
-
-      Object.values(respostas).forEach(({ nome, disponibilidade }) => {
-        totalPessoas++;
-        dias.forEach(d => {
-          (disponibilidade[d] || []).forEach(h => {
-            const chave = `${d}_${h}`;
-            if (!contagem[chave]) contagem[chave] = [];
-            contagem[chave].push(nome);
-          });
+    function mostrarPainel() {
+      document.getElementById("painel").style.display = "block";
+      db.ref("disponibilidades").once("value").then(snapshot => {
+        const dados = snapshot.val() || {};
+        const painel = document.getElementById("respostas");
+        painel.innerHTML = "";
+        const nomes = Object.keys(dados);
+        nomes.forEach(nome => {
+          const li = document.createElement("li");
+          li.innerText = `${nome} - enviado em ${dados[nome].enviadoEm?.split("T")[0] || "data desconhecida"}`;
+          painel.appendChild(li);
         });
+        document.getElementById("resumo").innerText = `Total de respostas: ${nomes.length}`;
       });
-
-      let melhorHorario = '', max = 0;
-      Object.entries(contagem).forEach(([k, nomes]) => {
-        if (nomes.length > max) {
-          max = nomes.length;
-          melhorHorario = k;
-        }
-      });
-
-      const [diaMelhor, horaMelhor] = melhorHorario.split('_');
-      const quemPode = contagem[melhorHorario] || [];
-      const todos = Object.keys(respostas);
-      const quemFalta = todos.filter(n => !quemPode.includes(n));
-
-      document.getElementById('resumo').textContent =
-        `Melhor horário sugerido: ${diaMelhor} às ${horaMelhor} (${quemPode.length}/${todos.length} pessoas).` +
-        (quemFalta.length ? ` Quem precisa ajustar: ${quemFalta.join(', ')}` : ' ✔ Todos disponíveis');
-
-      Object.values(respostas).forEach(p => {
-        const li = document.createElement('li');
-        li.textContent = `${p.nome} - enviado em ${p.dataPreenchimento}`;
-        painel.appendChild(li);
-      });
-    });
-  }
-
-  carregarRespostas();
-</script>
+    }
+  </script>
 </body>
 </html>
